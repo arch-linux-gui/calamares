@@ -1,19 +1,19 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Install System
-GenericName=System Installer
+Name=Install ALG
+GenericName=ALG Installer
 Keywords=calamares;system;installer;
 TryExec=calamares
 Exec=sh -c "pkexec calamares"
 Comment=Calamares — System Installer
-Icon=calamares
+Icon=archlinux-logo
 Terminal=false
 StartupNotify=true
 Categories=Qt;System;
 X-AppStream-Ignore=true
 
-Name[ar]=تثبيت النظام 
+Name[ar]=تثبيت النظام
 Icon[ar]=كالامارس
 GenericName[ar]=مثبت النظام
 Comment[ar]=كالامارس - مثبت النظام
