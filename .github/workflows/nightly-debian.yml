@@ -1,8 +1,6 @@
 name: nightly-debian-11
 
 on:
-  schedule:
-    - cron: "12 23 * * *"
   workflow_dispatch:
 
 env:
