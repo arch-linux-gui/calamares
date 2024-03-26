@@ -1,14 +1,6 @@
 name: ci-push
 
 on:
-  push:
-    branches:
-      - calamares
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
   workflow_dispatch:
 
 env:

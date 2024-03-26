@@ -1,8 +1,6 @@
 name: nightly-opensuse
 
 on:
-  schedule:
-    - cron: "32 23 * * *"
   workflow_dispatch:
 
 env:
