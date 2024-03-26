@@ -1,8 +1,6 @@
 name: weekly-debian-11
 
 on:
-  schedule:
-    - cron: "12 11 * * 3"
   workflow_dispatch:
 
 env:
