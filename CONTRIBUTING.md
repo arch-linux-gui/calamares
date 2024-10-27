@@ -154,9 +154,14 @@ dependencies for the image (in this example, for openSUSE and Qt6).
 - `./ci/deps-opensuse-qt6.sh`
 
 Then run CMake (add any CMake options you like at the end) and ninja.
-There is a script `ci/build.sh` that does this, too (without options).
 - `cmake -S /src -B /build -G Ninja`
 - `ninja -C /build`
+
+There is a script `ci/build.sh` that does the CMake an ninja steps.
+- If you set `CMAKE_ARGS` in the environment those extra CMake options are used.
+- If you add an argument to the script command which names a workflow
+  (e.g. "nightly-opensuse-qt6") then `CMAKE_ARGS` are extracted from that
+  workflow and used for the build.
 
 ### Running in Docker
 
@@ -212,6 +217,41 @@ instructions are on the wiki.
 Calamares translations are done on Transifex.
 The [translator's guide](https://github.com/calamares/calamares/wiki/Translate-Guide)
 on the wiki explains how to get involved there.
+
+### Using Transifex
+
+> This section is copied from the wiki. Please read the wiki for more details.
+
+Calamares uses [Transifex](https://www.transifex.com/) as its translation
+inrfastructure.
+The [project overview](https://www.transifex.com/calamares/calamares/) for Calamares
+shows which languages exist and how translated they are.
+Translations are (semi-)regularly updated from the *calamares* (development)
+branch of Calamares and sent to Transifex; updated translations are
+imported into the same *calamares* branch.
+
+This means that stable releases don't get translation updates --
+I have not thought of a good way to do that with one Calamares
+project in Transifex.
+
+Internally, the program uses **both** Qt translations and GNU
+gettext. This is invisible for the translator, but it does mean
+that the same string can show up in two different Calamares string collections.
+
+### Using Pull Requests
+
+> Please avoid using PRs to update translations if you can.
+> They **can** be merged back to Transifex, but it's somewhat
+> annoying to do so. You can merge your updated translations files
+> (the `.ts` files) to Transifex as described in this section.
+
+- Log in to Transifex
+- Select the language for upload (e.g. Arabic)
+- Click the resource to update (e.g. *Calamares* which is the one for the
+  bulk of the strings from the program itself, stored as
+  `lang/calamares_ar.ts` in the repository)
+- Click *Upload file* and pick the right `.ts` file
+- Click the *Translate* button to double-check the uploaded translations.
 
 
 ## Testing Calamares

@@ -9,6 +9,7 @@
 
 #include "Config.h"
 
+#include "ActiveDirectoryJob.h"
 #include "CreateUserJob.h"
 #include "MiscJobs.h"
 #include "SetHostNameJob.h"
@@ -18,6 +19,7 @@
 #include "JobQueue.h"
 #include "compat/Variant.h"
 #include "utils/Logger.h"
+#include "utils/Permissions.h"
 #include "utils/String.h"
 #include "utils/StringExpander.h"
 #include "utils/Variant.h"
@@ -444,8 +446,6 @@ makeHostnameSuggestion( const QString& templateString, const QStringList& fullNa
 
     QString hostnameSuggestion = d.expand( templateString );
 
-    // RegExp for valid hostnames; if the suggestion produces a valid name, return it
-    static const QRegularExpression HOSTNAME_RX( "^[a-zA-Z0-9][-a-zA-Z0-9_]*$" );
     return hostnameSuggestion.indexOf( HOSTNAME_RX ) != -1 ? hostnameSuggestion : QString();
 }
 
@@ -654,6 +654,48 @@ Config::setRootPasswordSecondary( const QString& s )
         emit rootPasswordStatusChanged( p.first, p.second );
         emit rootPasswordSecondaryChanged( s );
     }
+}
+
+void
+Config::setActiveDirectoryUsed( bool used )
+{
+    m_activeDirectoryUsed = used;
+}
+
+bool
+Config::getActiveDirectoryEnabled() const
+{
+    return m_activeDirectory;
+}
+
+bool
+Config::getActiveDirectoryUsed() const
+{
+    return m_activeDirectoryUsed && m_activeDirectory;
+}
+
+void
+Config::setActiveDirectoryAdminUsername( const QString& s )
+{
+    m_activeDirectoryAdminUsername = s;
+}
+
+void
+Config::setActiveDirectoryAdminPassword( const QString& s )
+{
+    m_activeDirectoryAdminPassword = s;
+}
+
+void
+Config::setActiveDirectoryDomain( const QString& s )
+{
+    m_activeDirectoryDomain = s;
+}
+
+void
+Config::setActiveDirectoryIP( const QString& s )
+{
+    m_activeDirectoryIP = s;
 }
 
 QString
@@ -886,6 +928,30 @@ tidy( QStringList& l )
     l.removeDuplicates();
 }
 
+static QString
+unscrambleYAML( const QVariant& v )
+{
+    if ( Calamares::isIntegerVariantType( v ) )
+    {
+        // YAML takes a string like "0755" and makes it an integer **anyway**
+        const auto number = v.toLongLong();
+        if ( number < 0 )
+        {
+            return QString();
+        }
+        // Since YAML has parsed it as a decimal number,
+        // turn it back into the string representation of
+        // that decimal number, even though we intended it
+        // to be octal (e.g. "755" written down becomes
+        // seven-hundred-fifty-five, needs to be the string
+        // "755" again, even though we meant octal 755 which
+        // is four-hundred-ninety-three.
+        if ( number > 777 ) { return QString(); }
+        return QString::number( number );
+    }
+    return v.toString();
+}
+
 void
 Config::setConfigurationMap( const QVariantMap& configurationMap )
 {
@@ -905,6 +971,22 @@ Config::setConfigurationMap( const QVariantMap& configurationMap )
         m_forbiddenLoginNames = Calamares::getStringList( userSettings, "forbidden_names" );
         m_forbiddenLoginNames << alwaysForbiddenLoginNames();
         tidy( m_forbiddenLoginNames );
+
+        const auto permissionKey = QStringLiteral( "home_permissions" );
+        if ( userSettings.contains( permissionKey ) )
+        {
+            const auto value = unscrambleYAML( userSettings.value( permissionKey ) );
+            m_homeDirPermissions = Calamares::parseFileMode( value );
+            if ( m_homeDirPermissions < 0 )
+            {
+                cWarning() << "Setting for" << permissionKey << '(' << value << userSettings[ permissionKey ]
+                           << ") is invalid.";
+            }
+        }
+        else
+        {
+            m_homeDirPermissions = -1;
+        }
     }
 
     setAutoLoginGroup( either< QString, const QString& >(
@@ -912,6 +994,9 @@ Config::setConfigurationMap( const QVariantMap& configurationMap )
     setSudoersGroup( Calamares::getString( configurationMap, "sudoersGroup" ) );
     m_sudoStyle = Calamares::getBool( configurationMap, "sudoersConfigureWithGroup", false ) ? SudoStyle::UserAndGroup
                                                                                              : SudoStyle::UserOnly;
+
+    // Handle Active Directory enablement
+    m_activeDirectory = Calamares::getBool( configurationMap, "allowActiveDirectory", false );
 
     // Handle *hostname* key and subkeys and legacy settings
     {
@@ -987,6 +1072,15 @@ Config::createJobs() const
     if ( !m_sudoersGroup.isEmpty() )
     {
         j = new SetupSudoJob( m_sudoersGroup, m_sudoStyle );
+        jobs.append( Calamares::job_ptr( j ) );
+    }
+
+    if ( getActiveDirectoryUsed() )
+    {
+        j = new ActiveDirectoryJob( m_activeDirectoryAdminUsername,
+                                    m_activeDirectoryAdminPassword,
+                                    m_activeDirectoryDomain,
+                                    m_activeDirectoryIP );
         jobs.append( Calamares::job_ptr( j ) );
     }
 

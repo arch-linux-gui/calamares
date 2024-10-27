@@ -110,8 +110,8 @@ PartitionViewStep::prettyName() const
 /** @brief Gather the pretty descriptions of all the partitioning jobs
  *
  * Returns a QStringList of each job's pretty description, including
- * empty strings and duplicates. The list is in-order of how the
- * jobs will be run.
+ * duplicates (but no empty lines). The list is in-order of how the
+ * jobs will be run. If no job has a non-empty description, the list is empty.
  */
 static QStringList
 jobDescriptions( const Calamares::JobList& jobs )
@@ -119,9 +119,10 @@ jobDescriptions( const Calamares::JobList& jobs )
     QStringList jobsLines;
     for ( const Calamares::job_ptr& job : qAsConst( jobs ) )
     {
-        if ( !job->prettyDescription().isEmpty() )
+        const auto description = job->prettyDescription();
+        if ( !description.isEmpty() )
         {
-            jobsLines.append( job->prettyDescription() );
+            jobsLines.append( description );
         }
     }
     return jobsLines;
@@ -223,11 +224,21 @@ PartitionViewStep::prettyStatus() const
     const QList< PartitionCoreModule::SummaryInfo > list = m_core->createSummaryInfo();
 
     cDebug() << "Summary for Partition" << list.length() << choice;
-    auto joinDiskInfo = [ choice = choice ]( QString& s, const PartitionCoreModule::SummaryInfo& i )
-    { return s + diskDescription( 1, i, choice ); };
-    const QString diskInfoLabel = std::accumulate( list.begin(), list.end(), QString(), joinDiskInfo );
-    const QString jobsLabel = jobDescriptions( jobs() ).join( QStringLiteral( "<br/>" ) );
-    return diskInfoLabel + "<br/>" + jobsLabel;
+    const QString diskInfoLabel = [ &choice, &list ]()
+    {
+        QStringList s;
+        for ( const auto& i : list )
+        {
+            s.append( diskDescription( 1, i, choice ) );
+        }
+        return s.join( QString() );
+    }();
+    QStringList jobsLabels = jobDescriptions( jobs() );
+    if ( m_config->swapChoice() == Config::SwapChoice::SwapFile )
+    {
+        jobsLabels.append( tr( "Create a swap file." ) );
+    }
+    return diskInfoLabel + "<br/>" + jobsLabels.join( QStringLiteral( "<br/>" ) );
 }
 
 QWidget*
@@ -497,11 +508,12 @@ shouldWarnForNotEncryptedBoot( const Config* config, const PartitionCoreModule* 
         Partition* root_p = core->findPartitionByMountPoint( "/" );
         Partition* boot_p = core->findPartitionByMountPoint( "/boot" );
 
-        if ( root_p and boot_p )
+        if ( root_p && boot_p )
         {
-            if ( ( root_p->fileSystem().type() == FileSystem::Luks && boot_p->fileSystem().type() != FileSystem::Luks )
-                 || ( root_p->fileSystem().type() == FileSystem::Luks2
-                      && boot_p->fileSystem().type() != FileSystem::Luks2 ) )
+            const auto encryptionMismatch
+                = [ root_t = root_p->fileSystem().type(), boot_t = boot_p->fileSystem().type() ]( FileSystem::Type t )
+            { return root_t == t && boot_t != t; };
+            if ( encryptionMismatch( FileSystem::Luks ) || encryptionMismatch( FileSystem::Luks2 ) )
             {
                 return true;
             }
