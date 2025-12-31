@@ -578,6 +578,8 @@ def get_grub_efi_parameters():
         return "arm64-efi", "grubaa64.efi", "bootaa64.efi"
     elif efi_bitness == "64" and cpu_type == "loongarch64":
         return "loongarch64-efi", "grubloongarch64.efi", "bootloongarch64.efi"
+    elif efi_bitness == "64" and cpu_type == "riscv64":
+        return "riscv64-efi", "grubriscv64.efi", "bootriscv64.efi"
     elif efi_bitness == "64":
         # If it's not ARM, must by AMD64
         return "x86_64-efi", "grubx64.efi", "bootx64.efi"
@@ -634,7 +636,7 @@ def run_grub_install(fw_type, partitions, efi_directory, install_hybrid_grub):
 
         if is_zfs:
             # Needs environment to be set for GRUB, so go via the shell
-            check_target_env_call(["sh", "-c", "ZPOOL_VDEV_NAME_PATH=1 " + " ".join(grubinstall_command)]
+            check_target_env_call(["sh", "-c", "ZPOOL_VDEV_NAME_PATH=1 " + " ".join(grubinstall_command)])
         else:
             check_target_env_call(grubinstall_command)
 
